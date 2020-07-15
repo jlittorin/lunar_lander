@@ -319,10 +319,10 @@
         var y1 = this.position.y;
         var x2 = x1 + 10 * Math.sin(-this.angle);
         var y2 = y1 - 10 * Math.cos(-this.angle);
-        var x3 = x2 + 10 * Math.sin(-this.angle + Math.PI / 8);
-        var y3 = y2 - 10 * Math.cos(-this.angle + Math.PI / 8);
-        var x4 = x3 + 10 * Math.sin(-this.angle + Math.PI * 7 / 8);
-        var y4 = y3 - 10 * Math.cos(-this.angle + Math.PI * 7 / 8);
+        var x3 = x2 + 5 * Math.sin(-this.angle + Math.PI / 4);
+        var y3 = y2 - 5 * Math.cos(-this.angle + Math.PI / 4);
+        var x4 = x3 + 5 * Math.sin(-this.angle + Math.PI * 3 / 4);
+        var y4 = y3 - 5 * Math.cos(-this.angle + Math.PI * 3 / 4);
         var x5 = x4 + 10 * Math.sin(-this.angle + Math.PI);
         var y5 = y4 - 10 * Math.cos(-this.angle + Math.PI);
 
@@ -336,7 +336,7 @@
         ];
 
         if (this.thrust > 0) {
-            var flareSize = this.thrust * 100;
+            var flareSize = this.thrust * 150;
 
             var x1 = this.position.x + 1 * Math.sin(this.angle + Math.PI / 4);
             var y1 = this.position.y + 1 * Math.cos(this.angle + Math.PI / 4);
