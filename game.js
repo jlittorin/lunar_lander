@@ -139,7 +139,8 @@
             screen.stroke();
             screen.fillText("Thrust: " + Math.round(10000 * this.ship.thrust), 10, 10);
             screen.fillText("Angle: " + Math.round(this.ship.angle / Math.PI * 180), 10, 20);
-            screen.fillText("Fuel: " + Math.round(this.ship.fuel), 10, 30);
+            screen.fillText("Vertical speed: " + Math.round(this.ship.speed.y*100), 10, 30);
+            screen.fillText("Fuel: " + Math.round(this.ship.fuel), 10, 40);
             this.objs.forEach(obj => obj.draw(screen));
         },
 
@@ -287,13 +288,13 @@
 
                 this.angle = Math.max(-Math.PI * 3 / 4, Math.min(Math.PI * 3 / 4, this.angle));
 
-                if (!this.Input.isDown(this.Input.KEYS.SPACE)) {
-                    this.thrust = -0.0017;
-                    this.thrust = Math.max(this.thrust, 0);
-                }
-                else {
+                if (this.Input.isDown(this.Input.KEYS.SPACE)) {
                     this.thrust += 0.0021;
                     this.thrust = Math.min(this.thrust, 0.05);
+                }
+                else {
+                    this.thrust = -0.0017;
+                    this.thrust = Math.max(this.thrust, 0);
                 }
             }
             else {
@@ -312,6 +313,16 @@
             this._calculateLineSegments();
 
             if (this.game.touchingLandingPad(this)) {
+                if (this.speed.y > 0.8)
+                {
+                    this.game.gameOver("You came down too fast");
+                    return;
+                }
+                if (Math.abs(this.angle) > Math.PI / 180 * 8)
+                {
+                    this.game.gameOver("Your landing angle was bad");
+                    return;
+                }
                 this.game.win();
             }
             if (this.game.outOfBounds(this)) {
@@ -349,25 +360,28 @@
             ];
 
             if (this.thrust > 0) {
-                var fireSize = this.thrust * 100;
+                var flareSize = this.thrust * 100;
 
                 var x1 = this.position.x + 1 * Math.sin(this.angle + Math.PI / 4);
                 var y1 = this.position.y + 1 * Math.cos(this.angle + Math.PI / 4);
                 var x2 = x1 + 6 * Math.sin(this.angle + Math.PI / 2);
                 var y2 = y1 + 6 * Math.cos(this.angle + Math.PI / 2);
-                var x3 = x1 + 3 * Math.sin(this.angle + Math.PI / 2) - fireSize * Math.sin(this.angle + Math.PI);
-                var y3 = y1 + 3 * Math.cos(this.angle + Math.PI / 2) - fireSize * Math.cos(this.angle + Math.PI);
-                this.lineSegments.push(
+                var x3 = x1 + 3 * Math.sin(this.angle + Math.PI / 2) - flareSize * Math.sin(this.angle + Math.PI);
+                var y3 = y1 + 3 * Math.cos(this.angle + Math.PI / 2) - flareSize * Math.cos(this.angle + Math.PI);
+                this.flareLineSegments = [
                         lineSegment(x1, y1, x2, y2),
                         lineSegment(x2, y2, x3, y3),
                         lineSegment(x3, y3, x1, y1)
-                );
+                ];
+            }
+            else {
+                this.flareLineSegments = [];
             }
         },
 
         draw: function (screen) {
             screen.beginPath();
-            this.lineSegments.forEach((s) => {
+            this.lineSegments.concat(this.flareLineSegments).forEach((s) => {
                 screen.moveTo(s.p1.x, s.p1.y);
                 screen.lineTo(s.p2.x, s.p2.y);
             });
