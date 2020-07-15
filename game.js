@@ -1,4 +1,11 @@
 ; (function () {
+    var lineSegment = function (x1, y1, x2, y2) {
+        return { 
+            p1: {x: x1, y: y1}, 
+            p2: {x: x2, y: y2}
+        };
+    };
+
     var Game = function (canvasId) {
         var canvas = document.getElementById(canvasId);
         var screen = canvas.getContext('2d');
@@ -7,7 +14,7 @@
         this.isGameOver = false;
         var self = this;
 
-        var drawSurface = function (landingPad, objs) {
+        var createSurface = function (landingPad, objs) {
             var step = canvas.width / 12;
             var ymax = canvas.height - 20;
             var ymin = canvas.height * 0.8;
@@ -74,28 +81,49 @@
             requestAnimationFrame(tick);
         }
 
+        this.objs = [];
+        
+        this.boundingBox = new BoundingBox(0, 0, this.gameSize.x, this.gameSize.y);
+        this.objs.push(this.boundingBox);
         this.landingPad = new LandingPad((2 + Math.round(Math.random() * 8)) * (this.gameSize.x / 12) + 2);
-        this.objs = [this.landingPad];
-        this.surface = drawSurface(this.landingPad, this.objs);
+        this.objs.push(this.landingPad);
+        this.surface = createSurface(this.landingPad, this.objs);
         this.ship = new Ship(this);
         this.objs.push(this.ship);
+
+        this.init();
         tick();
     };
 
     // returns true iff the line from (a,b)->(c,d) intersects with (p,q)->(r,s)
     function intersects(l1, l2) {
         var det, gamma, lambda;
-        det = (l1.x2 - l1.x1) * (l2.y2 - l2.y1) - (l2.x2 - l2.x1) * (l1.y2 - l1.y1);
+        det = (l1.p2.x - l1.p1.x) * (l2.p2.y - l2.p1.y) - (l2.p2.x - l2.p1.x) * (l1.p2.y - l1.p1.y);
         if (det === 0) {
             return false;
         } else {
-            lambda = ((l2.y2 - l2.y1) * (l2.x2 - l1.x1) + (l2.x1 - l2.x2) * (l2.y2 - l1.y1)) / det;
-            gamma = ((l1.y1 - l1.y2) * (l2.x2 - l1.x1) + (l1.x2 - l1.x1) * (l2.y2 - l1.y1)) / det;
+            lambda = ((l2.p2.y - l2.p1.y) * (l2.p2.x - l1.p1.x) + (l2.p1.x - l2.p2.x) * (l2.p2.y - l1.p1.y)) / det;
+            gamma = ((l1.p1.y - l1.p2.y) * (l2.p2.x - l1.p1.x) + (l1.p2.x - l1.p1.x) * (l2.p2.y - l1.p1.y)) / det;
             return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
         }
     };
 
+    function objectsIntersect(o1, o2) {
+        var retval = o1.lineSegments.filter((l1) => {
+            var retval = o2.lineSegments.filter((l2) => {
+                var retval = intersects(l1, l2);
+                return retval;
+            }).length > 0;
+            return retval;
+        }).length > 0;
+        return retval;
+    };
+
     Game.prototype = {
+        init: function () {
+            this.objs.forEach(obj => obj.init());
+        },
+
         update: function () {
             this.objs.forEach(obj => obj.update());
         },
@@ -115,30 +143,21 @@
             this.objs.forEach(obj => obj.draw(screen));
         },
 
-        outOfBounds: function (x, y, w, h) {
-            return x < 0 || y < 0 || (x + w) > this.gameSize.x || (y + h) > this.gameSize.y;
+        outOfBounds: function (obj) {
+            return objectsIntersect(obj, this.boundingBox);
         },
 
 
-        touchingSurface: function (x, y, w, h) {
-            var shipLineSegment = { x1: x, y1: y, x2: x + w, y2: y + h };
-            var touching = this.surface.filter((segment) => {
-                return intersects(shipLineSegment, segment);
+        touchingSurface: function (obj) {
+            var touching = this.surface.filter((surfaceSegment) => {
+                return objectsIntersect(obj, surfaceSegment);
             });
             return touching.length > 0;
 
         },
 
-        touchingLandingPad: function (x, y, w, h) {
-            var shipLineSegment = { x1: x, y1: y, x2: x + w, y2: y + h };
-            return intersects(shipLineSegment,
-                {
-                    x1: this.landingPad.x,
-                    y1: this.landingPad.y - this.landingPad.height,
-                    x2: this.landingPad.x + this.landingPad.width,
-                    y2: this.landingPad.y - this.landingPad.height
-                });
-
+        touchingLandingPad: function (obj) {
+            return objectsIntersect(obj, this.landingPad);
         },
 
         win: function () {
@@ -152,15 +171,48 @@
         }
     };
 
+    var BoundingBox = function(x, y, width, height)
+    {
+        this.lineSegments = [
+            lineSegment(x, y, x + width, y),
+            lineSegment(x + width, y, x + width, y + height),
+            lineSegment(x + width, y + height, x, y + height),
+            lineSegment(x, y + height, x, y)
+        ];
+    }
+
+    BoundingBox.prototype = 
+    {
+        init: function() {
+        },
+
+        update: function () {
+        },
+
+        draw: function(screen) {
+            screen.beginPath();
+            this.lineSegments.forEach((s) => {
+                screen.moveTo(s.p1.x, s.p1.y);
+                screen.lineTo(s.p2.x, s.p2.y);
+            });
+            screen.stroke();
+        }
+
+    };
+
     var SurfaceSegment = function (x1, y1, x2, y2) {
         this.x1 = x1;
         this.y1 = y1;
         this.x2 = x2;
         this.y2 = y2;
+        this.lineSegments = [lineSegment(x1, y1, x2, y2)];
     }
 
     SurfaceSegment.prototype =
     {
+        init: function() {
+        },
+
         update: function () {
         },
 
@@ -181,16 +233,24 @@
 
     LandingPad.prototype =
     {
+        init: function() {
+            this.lineSegments = [
+                lineSegment(this.x, this.y, this.x, this.y - this.height),
+                lineSegment(this.x, this.y - this.height, this.x + this.width, this.y - this.height),
+                lineSegment(this.x + this.width, this.y - this.height, this.x + this.width, this.y),
+                lineSegment(this.x + this.width, this.y, this.x, this.y)
+            ];
+        },
+        
         update: function () {
         },
 
         draw: function (screen) {
             screen.beginPath();
-            screen.moveTo(this.x, this.y);
-            screen.lineTo(this.x, this.y - this.height);
-            screen.lineTo(this.x + this.width, this.y - this.height);
-            screen.lineTo(this.x + this.width, this.y);
-            screen.closePath();
+            this.lineSegments.forEach((s) => {
+                screen.moveTo(s.p1.x, s.p1.y);
+                screen.lineTo(s.p2.x, s.p2.y);
+            });
             screen.stroke();
         }
     }
@@ -199,7 +259,7 @@
         this.game = game;
         this.fuel = 100;
         do {
-            this.position = { x: game.gameSize.x * 0.2 + Math.random() * game.gameSize.x * 0.6, y: 10 };
+            this.position = { x: game.gameSize.x * 0.2 + Math.random() * game.gameSize.x * 0.6, y: 25 };
         } while ((Math.abs(this.position.x - this.game.landingPad.x - this.game.landingPad.width / 2)) < 50);
 
         this.size = { width: 10, height: 10 };
@@ -213,6 +273,9 @@
 
     Ship.prototype =
     {
+        init: function () {
+        },
+
         update: function () {
             if (this.fuel > 0) {
                 if (this.Input.isDown(this.Input.KEYS.LEFT)) {
@@ -246,13 +309,15 @@
             this.position.x = this.position.x + this.speed.x;
             this.position.y = this.position.y + this.speed.y;
 
-            if (this.game.touchingLandingPad(this.position.x, this.position.y, 10 * Math.sin(this.angle), 10 * Math.cos(this.angle))) {
+            this._calculateLineSegments();
+
+            if (this.game.touchingLandingPad(this)) {
                 this.game.win();
             }
-            if (this.game.outOfBounds(this.position.x, this.position.y, 10 * Math.sin(this.angle), 10 * Math.cos(this.angle))) {
+            if (this.game.outOfBounds(this)) {
                 this.game.gameOver("You went off into space");
             }
-            if (this.game.touchingSurface(this.position.x, this.position.y, 10 * Math.sin(this.angle), 10 * Math.cos(this.angle))) {
+            if (this.game.touchingSurface(this)) {
                 if (this.fuel > 0) {
                     this.game.gameOver("You crashed, causing a crater " + Math.round(this.fuel / 1.7) + " km wide.");
                 }
@@ -262,7 +327,7 @@
             }
         },
 
-        draw: function (screen) {
+        _calculateLineSegments: function () {
             var x1 = this.position.x;
             var y1 = this.position.y;
             var x2 = x1 + 10 * Math.sin(-this.angle);
@@ -273,55 +338,62 @@
             var y4 = y3 - 10 * Math.cos(-this.angle + Math.PI * 7 / 8);
             var x5 = x4 + 10 * Math.sin(-this.angle + Math.PI);
             var y5 = y4 - 10 * Math.cos(-this.angle + Math.PI);
-            screen.beginPath();
-            screen.moveTo(x1, y1);
-            screen.lineTo(x2, y2);
-            screen.lineTo(x3, y3);
-            screen.lineTo(x4, y4);
-            screen.lineTo(x2, y2);
-            screen.moveTo(x4, y4);
-            screen.lineTo(x5, y5);
-            screen.lineTo(x1, y1);
-            screen.stroke();
 
-            if (this.thrust > 0)
-            {
+            this.lineSegments = [
+                lineSegment(x1, y1, x2, y2),
+                lineSegment(x2, y2, x3, y3),
+                lineSegment(x3, y3, x4, y4),
+                lineSegment(x2, y2, x4, y4),
+                lineSegment(x4, y4, x5, y5),
+                lineSegment(x5, y5, x1, y1),
+            ];
+
+            if (this.thrust > 0) {
                 var fireSize = this.thrust * 100;
-                
+
                 var x1 = this.position.x + 1 * Math.sin(this.angle + Math.PI / 4);
                 var y1 = this.position.y + 1 * Math.cos(this.angle + Math.PI / 4);
                 var x2 = x1 + 6 * Math.sin(this.angle + Math.PI / 2);
                 var y2 = y1 + 6 * Math.cos(this.angle + Math.PI / 2);
                 var x3 = x1 + 3 * Math.sin(this.angle + Math.PI / 2) - fireSize * Math.sin(this.angle + Math.PI);
                 var y3 = y1 + 3 * Math.cos(this.angle + Math.PI / 2) - fireSize * Math.cos(this.angle + Math.PI);
-                screen.beginPath();
-                screen.moveTo(x1, y1);
-                screen.lineTo(x2, y2);
-                screen.lineTo(x3, y3);
-                screen.lineTo(x1, y1);
-                screen.stroke();
+                this.lineSegments.push(
+                        lineSegment(x1, y1, x2, y2),
+                        lineSegment(x2, y2, x3, y3),
+                        lineSegment(x3, y3, x1, y1)
+                );
             }
+        },
+
+        draw: function (screen) {
+            screen.beginPath();
+            this.lineSegments.forEach((s) => {
+                screen.moveTo(s.p1.x, s.p1.y);
+                screen.lineTo(s.p2.x, s.p2.y);
+            });
+            screen.stroke();
         }
     }
+
 
     var Input = function () {
-        var keyState = {};
+    var keyState = {};
 
-        window.onkeydown = function (e) {
-            keyState[e.keyCode] = true;
-        }
-        window.onkeyup = function (e) {
-            keyState[e.keyCode] = false;
-        }
-
-        this.isDown = function (keyCode) {
-            return keyState[keyCode] === true;
-        }
-
-        this.KEYS = { LEFT: 37, RIGHT: 39, SPACE: 32 };
-    };
-
-    window.onload = function () {
-        new Game("screen");
+    window.onkeydown = function (e) {
+        keyState[e.keyCode] = true;
     }
-})();
+    window.onkeyup = function (e) {
+        keyState[e.keyCode] = false;
+    }
+
+    this.isDown = function (keyCode) {
+        return keyState[keyCode] === true;
+    }
+
+    this.KEYS = { LEFT: 37, RIGHT: 39, SPACE: 32 };
+};
+
+window.onload = function () {
+    new Game("screen");
+}
+}) ();
