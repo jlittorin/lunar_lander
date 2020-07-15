@@ -1,8 +1,8 @@
 ; (function () {
     var lineSegment = function (x1, y1, x2, y2) {
-        return { 
-            p1: {x: x1, y: y1}, 
-            p2: {x: x2, y: y2}
+        return {
+            p1: { x: x1, y: y1 },
+            p2: { x: x2, y: y2 }
         };
     };
 
@@ -82,7 +82,7 @@
         }
 
         this.objs = [];
-        
+
         this.boundingBox = new BoundingBox(0, 0, this.gameSize.x, this.gameSize.y);
         this.objs.push(this.boundingBox);
         this.landingPad = new LandingPad((2 + Math.round(Math.random() * 8)) * (this.gameSize.x / 12) + 2);
@@ -137,10 +137,9 @@
             screen.lineTo(size.x, 0);
             screen.closePath();
             screen.stroke();
-            screen.fillText("Thrust: " + Math.round(10000 * this.ship.thrust), 10, 10);
-            screen.fillText("Angle: " + Math.round(this.ship.angle / Math.PI * 180), 10, 20);
-            screen.fillText("Vertical speed: " + Math.round(this.ship.speed.y*100), 10, 30);
-            screen.fillText("Fuel: " + Math.round(this.ship.fuel), 10, 40);
+            screen.fillText("Angle: " + Math.round(this.ship.angle / Math.PI * 180), 10, 10);
+            screen.fillText("Vertical speed: " + Math.round(this.ship.speed.y * 100), 10, 20);
+            screen.fillText("Fuel: " + Math.round(this.ship.fuel), 10, 30);
             this.objs.forEach(obj => obj.draw(screen));
         },
 
@@ -172,8 +171,7 @@
         }
     };
 
-    var BoundingBox = function(x, y, width, height)
-    {
+    var BoundingBox = function (x, y, width, height) {
         this.lineSegments = [
             lineSegment(x, y, x + width, y),
             lineSegment(x + width, y, x + width, y + height),
@@ -182,15 +180,15 @@
         ];
     }
 
-    BoundingBox.prototype = 
+    BoundingBox.prototype =
     {
-        init: function() {
+        init: function () {
         },
 
         update: function () {
         },
 
-        draw: function(screen) {
+        draw: function (screen) {
             screen.beginPath();
             this.lineSegments.forEach((s) => {
                 screen.moveTo(s.p1.x, s.p1.y);
@@ -211,7 +209,7 @@
 
     SurfaceSegment.prototype =
     {
-        init: function() {
+        init: function () {
         },
 
         update: function () {
@@ -234,7 +232,7 @@
 
     LandingPad.prototype =
     {
-        init: function() {
+        init: function () {
             this.lineSegments = [
                 lineSegment(this.x, this.y, this.x, this.y - this.height),
                 lineSegment(this.x, this.y - this.height, this.x + this.width, this.y - this.height),
@@ -242,7 +240,7 @@
                 lineSegment(this.x + this.width, this.y, this.x, this.y)
             ];
         },
-        
+
         update: function () {
         },
 
@@ -313,13 +311,11 @@
             this._calculateLineSegments();
 
             if (this.game.touchingLandingPad(this)) {
-                if (this.speed.y > 0.8)
-                {
+                if (this.speed.y > 0.8) {
                     this.game.gameOver("You came down too fast");
                     return;
                 }
-                if (Math.abs(this.angle) > Math.PI / 180 * 8)
-                {
+                if (Math.abs(this.angle) > Math.PI / 180 * 8) {
                     this.game.gameOver("Your landing angle was bad");
                     return;
                 }
@@ -369,9 +365,9 @@
                 var x3 = x1 + 3 * Math.sin(this.angle + Math.PI / 2) - flareSize * Math.sin(this.angle + Math.PI);
                 var y3 = y1 + 3 * Math.cos(this.angle + Math.PI / 2) - flareSize * Math.cos(this.angle + Math.PI);
                 this.flareLineSegments = [
-                        lineSegment(x1, y1, x2, y2),
-                        lineSegment(x2, y2, x3, y3),
-                        lineSegment(x3, y3, x1, y1)
+                    lineSegment(x1, y1, x2, y2),
+                    lineSegment(x2, y2, x3, y3),
+                    lineSegment(x3, y3, x1, y1)
                 ];
             }
             else {
@@ -391,23 +387,23 @@
 
 
     var Input = function () {
-    var keyState = {};
+        var keyState = {};
 
-    window.onkeydown = function (e) {
-        keyState[e.keyCode] = true;
+        window.onkeydown = function (e) {
+            keyState[e.keyCode] = true;
+        }
+        window.onkeyup = function (e) {
+            keyState[e.keyCode] = false;
+        }
+
+        this.isDown = function (keyCode) {
+            return keyState[keyCode] === true;
+        }
+
+        this.KEYS = { LEFT: 37, RIGHT: 39, SPACE: 32 };
+    };
+
+    window.onload = function () {
+        new Game("screen");
     }
-    window.onkeyup = function (e) {
-        keyState[e.keyCode] = false;
-    }
-
-    this.isDown = function (keyCode) {
-        return keyState[keyCode] === true;
-    }
-
-    this.KEYS = { LEFT: 37, RIGHT: 39, SPACE: 32 };
-};
-
-window.onload = function () {
-    new Game("screen");
-}
-}) ();
+})();
