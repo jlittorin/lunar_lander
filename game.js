@@ -68,13 +68,14 @@
                     screen.fillText(self.gameOverMsgs[1], self.gameSize.x / 2 - metric.width / 2, self.gameSize.y / 2 - (metric.actualBoundingBoxDescent - metric.actualBoundingBoxAscent) * 0.8);
                 }
 
-                var metric = screen.measureText("Press any key to play again");
-                screen.fillText("Press any key to play again", self.gameSize.x / 2 - metric.width / 2, self.gameSize.y / 2 - (metric.actualBoundingBoxDescent - metric.actualBoundingBoxAscent) * 5.6);
+                window.setTimeout(() => {
+                    var metric = screen.measureText("Press any key to play again");
+                    screen.fillText("Press any key to play again", self.gameSize.x / 2 - metric.width / 2, self.gameSize.y / 2 - (metric.actualBoundingBoxDescent - metric.actualBoundingBoxAscent) * 5.6);
 
-                window.onkeydown = function (e) {
-                    new Game("screen");
-                }
-
+                    window.onkeydown = function (e) {
+                        new Game("screen");
+                    }
+                }, 1500);
                 return;
             }
             self.draw(screen, self.gameSize);
