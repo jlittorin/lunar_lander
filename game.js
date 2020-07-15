@@ -1,10 +1,30 @@
-; (function () {
-    var lineSegment = function (x1, y1, x2, y2) {
-        return {
-            p1: { x: x1, y: y1 },
-            p2: { x: x2, y: y2 }
-        };
-    };
+(function () {
+
+    function extend(base, constructor) {
+        var prototype = new Function();
+        prototype.prototype = base.prototype;
+        constructor.prototype = new prototype();
+        constructor.prototype.constructor = constructor;
+    }
+
+    var LineSegment = function (x1, y1, x2, y2) {
+        this.p1 = { x: x1, y: y1 };
+        this.p2 = { x: x2, y: y2 };
+    }
+
+    LineSegment.prototype = {
+        intersects: function (other) {
+            var det, gamma, lambda;
+            det = (this.p2.x - this.p1.x) * (other.p2.y - other.p1.y) - (other.p2.x - other.p1.x) * (this.p2.y - this.p1.y);
+            if (det === 0) {
+                return false;
+            } else {
+                lambda = ((other.p2.y - other.p1.y) * (other.p2.x - this.p1.x) + (other.p1.x - other.p2.x) * (other.p2.y - this.p1.y)) / det;
+                gamma = ((this.p1.y - this.p2.y) * (other.p2.x - this.p1.x) + (this.p2.x - this.p1.x) * (other.p2.y - this.p1.y)) / det;
+                return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+            }
+        }
+    }
 
     var Game = function (canvasId) {
         var canvas = document.getElementById(canvasId);
@@ -58,20 +78,22 @@
             return surface;
         };
 
+        var printCentered = function(text, yOffset)
+        {
+            var metric = screen.measureText(text);
+            screen.fillText(text, self.gameSize.x / 2 - metric.width / 2, self.gameSize.y / 2 - (metric.actualBoundingBoxDescent - metric.actualBoundingBoxAscent) * yOffset);
+        }
+
         var tick = function () {
             self.update();
             if (self.isGameOver) {
-                var metric = screen.measureText(self.gameOverMsgs[0]);
-                screen.fillText(self.gameOverMsgs[0], self.gameSize.x / 2 - metric.width / 2, self.gameSize.y / 2 + (metric.actualBoundingBoxDescent - metric.actualBoundingBoxAscent) * 0.8);
+                printCentered(self.gameOverMsgs[0], -0.8)
                 if (self.gameOverMsgs.length > 1) {
-                    var metric = screen.measureText(self.gameOverMsgs[1]);
-                    screen.fillText(self.gameOverMsgs[1], self.gameSize.x / 2 - metric.width / 2, self.gameSize.y / 2 - (metric.actualBoundingBoxDescent - metric.actualBoundingBoxAscent) * 0.8);
+                    printCentered(self.gameOverMsgs[1], 0.8)
                 }
 
                 window.setTimeout(() => {
-                    var metric = screen.measureText("Press any key to play again");
-                    screen.fillText("Press any key to play again", self.gameSize.x / 2 - metric.width / 2, self.gameSize.y / 2 - (metric.actualBoundingBoxDescent - metric.actualBoundingBoxAscent) * 5.6);
-
+                    printCentered("Press any key to play again", 5.6)
                     window.onkeydown = function (e) {
                         new Game("screen");
                     }
@@ -94,31 +116,7 @@
 
         this.init();
         tick();
-    };
-
-    // returns true iff the line from (a,b)->(c,d) intersects with (p,q)->(r,s)
-    function intersects(l1, l2) {
-        var det, gamma, lambda;
-        det = (l1.p2.x - l1.p1.x) * (l2.p2.y - l2.p1.y) - (l2.p2.x - l2.p1.x) * (l1.p2.y - l1.p1.y);
-        if (det === 0) {
-            return false;
-        } else {
-            lambda = ((l2.p2.y - l2.p1.y) * (l2.p2.x - l1.p1.x) + (l2.p1.x - l2.p2.x) * (l2.p2.y - l1.p1.y)) / det;
-            gamma = ((l1.p1.y - l1.p2.y) * (l2.p2.x - l1.p1.x) + (l1.p2.x - l1.p1.x) * (l2.p2.y - l1.p1.y)) / det;
-            return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
-        }
-    };
-
-    function objectsIntersect(o1, o2) {
-        var retval = o1.lineSegments.filter((l1) => {
-            var retval = o2.lineSegments.filter((l2) => {
-                var retval = intersects(l1, l2);
-                return retval;
-            }).length > 0;
-            return retval;
-        }).length > 0;
-        return retval;
-    };
+    }
 
     Game.prototype = {
         init: function () {
@@ -145,20 +143,18 @@
         },
 
         outOfBounds: function (obj) {
-            return objectsIntersect(obj, this.boundingBox);
+            return this.boundingBox.intersects(obj);
         },
-
 
         touchingSurface: function (obj) {
             var touching = this.surface.filter((surfaceSegment) => {
-                return objectsIntersect(obj, surfaceSegment);
+                return surfaceSegment.intersects(obj);
             });
             return touching.length > 0;
-
         },
 
         touchingLandingPad: function (obj) {
-            return objectsIntersect(obj, this.landingPad);
+            return this.landingPad.intersects(obj);
         },
 
         win: function () {
@@ -170,19 +166,13 @@
             this.isGameOver = true;
             this.gameOverMsgs = ["GAME OVER", msg];
         }
-    };
-
-    var BoundingBox = function (x, y, width, height) {
-        this.lineSegments = [
-            lineSegment(x, y, x + width, y),
-            lineSegment(x + width, y, x + width, y + height),
-            lineSegment(x + width, y + height, x, y + height),
-            lineSegment(x, y + height, x, y)
-        ];
     }
 
-    BoundingBox.prototype =
-    {
+    var GameObject = function () {
+        this.lineSegments = [];
+    }
+
+    GameObject.prototype = {
         init: function () {
         },
 
@@ -196,33 +186,40 @@
                 screen.lineTo(s.p2.x, s.p2.y);
             });
             screen.stroke();
-        }
+        },
 
-    };
+        intersects: function (other) {
+            var retval = this.lineSegments.filter((l1) => {
+                var retval = other.lineSegments.filter((l2) => {
+                    var retval = l1.intersects(l2);
+                    return retval;
+                }).length > 0;
+                return retval;
+            }).length > 0;
+            return retval;
+        }
+    }
+
+    var BoundingBox = function (x, y, width, height) {
+        this.lineSegments = [
+            new LineSegment(x, y, x + width, y),
+            new LineSegment(x + width, y, x + width, y + height),
+            new LineSegment(x + width, y + height, x, y + height),
+            new LineSegment(x, y + height, x, y)
+        ];
+    }
+
+    extend(GameObject, BoundingBox);
 
     var SurfaceSegment = function (x1, y1, x2, y2) {
         this.x1 = x1;
         this.y1 = y1;
         this.x2 = x2;
         this.y2 = y2;
-        this.lineSegments = [lineSegment(x1, y1, x2, y2)];
+        this.lineSegments = [new LineSegment(x1, y1, x2, y2)];
     }
 
-    SurfaceSegment.prototype =
-    {
-        init: function () {
-        },
-
-        update: function () {
-        },
-
-        draw: function (screen) {
-            screen.beginPath();
-            screen.moveTo(this.x1, this.y1);
-            screen.lineTo(this.x2, this.y2);
-            screen.stroke();
-        }
-    }
+    extend(GameObject, SurfaceSegment);
 
     var LandingPad = function (x) {
         this.x = x;
@@ -231,28 +228,15 @@
         this.height = 0;
     }
 
-    LandingPad.prototype =
-    {
-        init: function () {
-            this.lineSegments = [
-                lineSegment(this.x, this.y, this.x, this.y - this.height),
-                lineSegment(this.x, this.y - this.height, this.x + this.width, this.y - this.height),
-                lineSegment(this.x + this.width, this.y - this.height, this.x + this.width, this.y),
-                lineSegment(this.x + this.width, this.y, this.x, this.y)
-            ];
-        },
+    extend(GameObject, LandingPad);
 
-        update: function () {
-        },
-
-        draw: function (screen) {
-            screen.beginPath();
-            this.lineSegments.forEach((s) => {
-                screen.moveTo(s.p1.x, s.p1.y);
-                screen.lineTo(s.p2.x, s.p2.y);
-            });
-            screen.stroke();
-        }
+    LandingPad.prototype.init = function () {
+        this.lineSegments = [
+            new LineSegment(this.x, this.y, this.x, this.y - this.height),
+            new LineSegment(this.x, this.y - this.height, this.x + this.width, this.y - this.height),
+            new LineSegment(this.x + this.width, this.y - this.height, this.x + this.width, this.y),
+            new LineSegment(this.x + this.width, this.y, this.x, this.y)
+        ];
     }
 
     var Ship = function (game) {
@@ -269,123 +253,116 @@
         this.Input = new Input();
     }
 
+    extend(GameObject, Ship);
 
+    Ship.prototype.update = function () {
+        if (this.fuel > 0) {
+            if (this.Input.isDown(this.Input.KEYS.LEFT)) {
+                this.angle += Math.PI / 180 * 2;
+            }
+            if (this.Input.isDown(this.Input.KEYS.RIGHT)) {
+                this.angle -= Math.PI / 180 * 2;
+            }
 
-    Ship.prototype =
-    {
-        init: function () {
-        },
+            this.angle = Math.max(-Math.PI * 3 / 4, Math.min(Math.PI * 3 / 4, this.angle));
 
-        update: function () {
+            if (this.Input.isDown(this.Input.KEYS.SPACE)) {
+                this.thrust += 0.0021;
+                this.thrust = Math.min(this.thrust, 0.05);
+            }
+            else {
+                this.thrust = -0.0017;
+                this.thrust = Math.max(this.thrust, 0);
+            }
+        }
+        else {
+            this.thrust = 0;
+        }
+
+        this.fuel = Math.max(0, this.fuel - this.thrust * 7);
+
+        this.speed.x = this.speed.x - this.thrust * Math.sin(this.angle);
+        this.speed.y = this.speed.y - this.thrust * Math.cos(this.angle);
+        this.speed.y = this.speed.y + 0.005;
+
+        this.position.x = this.position.x + this.speed.x;
+        this.position.y = this.position.y + this.speed.y;
+
+        this._calculateLineSegments();
+
+        if (this.game.touchingLandingPad(this)) {
+            if (this.speed.y > 0.8) {
+                this.game.gameOver("You came down too fast");
+                return;
+            }
+            if (Math.abs(this.angle) > Math.PI / 180 * 8) {
+                this.game.gameOver("Your landing angle was bad");
+                return;
+            }
+            this.game.win();
+        }
+        if (this.game.outOfBounds(this)) {
+            this.game.gameOver("You went off into space");
+        }
+        if (this.game.touchingSurface(this)) {
             if (this.fuel > 0) {
-                if (this.Input.isDown(this.Input.KEYS.LEFT)) {
-                    this.angle += Math.PI / 180 * 2;
-                }
-                if (this.Input.isDown(this.Input.KEYS.RIGHT)) {
-                    this.angle -= Math.PI / 180 * 2;
-                }
-
-                this.angle = Math.max(-Math.PI * 3 / 4, Math.min(Math.PI * 3 / 4, this.angle));
-
-                if (this.Input.isDown(this.Input.KEYS.SPACE)) {
-                    this.thrust += 0.0021;
-                    this.thrust = Math.min(this.thrust, 0.05);
-                }
-                else {
-                    this.thrust = -0.0017;
-                    this.thrust = Math.max(this.thrust, 0);
-                }
+                this.game.gameOver("You crashed, causing a crater " + Math.round(this.fuel / 1.7) + " km wide.");
             }
             else {
-                this.thrust = 0;
+                this.game.gameOver("You crashed.");
             }
+        }
+    };
 
-            this.fuel = Math.max(0, this.fuel - this.thrust * 7);
+    Ship.prototype._calculateLineSegments = function () {
+        var x1 = this.position.x;
+        var y1 = this.position.y;
+        var x2 = x1 + 10 * Math.sin(-this.angle);
+        var y2 = y1 - 10 * Math.cos(-this.angle);
+        var x3 = x2 + 10 * Math.sin(-this.angle + Math.PI / 8);
+        var y3 = y2 - 10 * Math.cos(-this.angle + Math.PI / 8);
+        var x4 = x3 + 10 * Math.sin(-this.angle + Math.PI * 7 / 8);
+        var y4 = y3 - 10 * Math.cos(-this.angle + Math.PI * 7 / 8);
+        var x5 = x4 + 10 * Math.sin(-this.angle + Math.PI);
+        var y5 = y4 - 10 * Math.cos(-this.angle + Math.PI);
 
-            this.speed.x = this.speed.x - this.thrust * Math.sin(this.angle);
-            this.speed.y = this.speed.y - this.thrust * Math.cos(this.angle);
-            this.speed.y = this.speed.y + 0.005;
+        this.lineSegments = [
+            new LineSegment(x1, y1, x2, y2),
+            new LineSegment(x2, y2, x3, y3),
+            new LineSegment(x3, y3, x4, y4),
+            new LineSegment(x2, y2, x4, y4),
+            new LineSegment(x4, y4, x5, y5),
+            new LineSegment(x5, y5, x1, y1),
+        ];
 
-            this.position.x = this.position.x + this.speed.x;
-            this.position.y = this.position.y + this.speed.y;
+        if (this.thrust > 0) {
+            var flareSize = this.thrust * 100;
 
-            this._calculateLineSegments();
-
-            if (this.game.touchingLandingPad(this)) {
-                if (this.speed.y > 0.8) {
-                    this.game.gameOver("You came down too fast");
-                    return;
-                }
-                if (Math.abs(this.angle) > Math.PI / 180 * 8) {
-                    this.game.gameOver("Your landing angle was bad");
-                    return;
-                }
-                this.game.win();
-            }
-            if (this.game.outOfBounds(this)) {
-                this.game.gameOver("You went off into space");
-            }
-            if (this.game.touchingSurface(this)) {
-                if (this.fuel > 0) {
-                    this.game.gameOver("You crashed, causing a crater " + Math.round(this.fuel / 1.7) + " km wide.");
-                }
-                else {
-                    this.game.gameOver("You crashed.");
-                }
-            }
-        },
-
-        _calculateLineSegments: function () {
-            var x1 = this.position.x;
-            var y1 = this.position.y;
-            var x2 = x1 + 10 * Math.sin(-this.angle);
-            var y2 = y1 - 10 * Math.cos(-this.angle);
-            var x3 = x2 + 10 * Math.sin(-this.angle + Math.PI / 8);
-            var y3 = y2 - 10 * Math.cos(-this.angle + Math.PI / 8);
-            var x4 = x3 + 10 * Math.sin(-this.angle + Math.PI * 7 / 8);
-            var y4 = y3 - 10 * Math.cos(-this.angle + Math.PI * 7 / 8);
-            var x5 = x4 + 10 * Math.sin(-this.angle + Math.PI);
-            var y5 = y4 - 10 * Math.cos(-this.angle + Math.PI);
-
-            this.lineSegments = [
-                lineSegment(x1, y1, x2, y2),
-                lineSegment(x2, y2, x3, y3),
-                lineSegment(x3, y3, x4, y4),
-                lineSegment(x2, y2, x4, y4),
-                lineSegment(x4, y4, x5, y5),
-                lineSegment(x5, y5, x1, y1),
+            var x1 = this.position.x + 1 * Math.sin(this.angle + Math.PI / 4);
+            var y1 = this.position.y + 1 * Math.cos(this.angle + Math.PI / 4);
+            var x2 = x1 + 6 * Math.sin(this.angle + Math.PI / 2);
+            var y2 = y1 + 6 * Math.cos(this.angle + Math.PI / 2);
+            var x3 = x1 + 3 * Math.sin(this.angle + Math.PI / 2) - flareSize * Math.sin(this.angle + Math.PI);
+            var y3 = y1 + 3 * Math.cos(this.angle + Math.PI / 2) - flareSize * Math.cos(this.angle + Math.PI);
+            this.flareLineSegments = [
+                new LineSegment(x1, y1, x2, y2),
+                new LineSegment(x2, y2, x3, y3),
+                new LineSegment(x3, y3, x1, y1)
             ];
-
-            if (this.thrust > 0) {
-                var flareSize = this.thrust * 100;
-
-                var x1 = this.position.x + 1 * Math.sin(this.angle + Math.PI / 4);
-                var y1 = this.position.y + 1 * Math.cos(this.angle + Math.PI / 4);
-                var x2 = x1 + 6 * Math.sin(this.angle + Math.PI / 2);
-                var y2 = y1 + 6 * Math.cos(this.angle + Math.PI / 2);
-                var x3 = x1 + 3 * Math.sin(this.angle + Math.PI / 2) - flareSize * Math.sin(this.angle + Math.PI);
-                var y3 = y1 + 3 * Math.cos(this.angle + Math.PI / 2) - flareSize * Math.cos(this.angle + Math.PI);
-                this.flareLineSegments = [
-                    lineSegment(x1, y1, x2, y2),
-                    lineSegment(x2, y2, x3, y3),
-                    lineSegment(x3, y3, x1, y1)
-                ];
-            }
-            else {
-                this.flareLineSegments = [];
-            }
-        },
-
-        draw: function (screen) {
-            screen.beginPath();
-            this.lineSegments.concat(this.flareLineSegments).forEach((s) => {
-                screen.moveTo(s.p1.x, s.p1.y);
-                screen.lineTo(s.p2.x, s.p2.y);
-            });
-            screen.stroke();
+        }
+        else {
+            this.flareLineSegments = [];
         }
     }
 
+    Ship.prototype.draw = function (screen) {
+        screen.beginPath();
+        this.lineSegments.concat(this.flareLineSegments).forEach((s) => {
+            screen.moveTo(s.p1.x, s.p1.y);
+            screen.lineTo(s.p2.x, s.p2.y);
+        });
+        screen.stroke();
+    }
 
     var Input = function () {
         var keyState = {};
@@ -402,7 +379,7 @@
         }
 
         this.KEYS = { LEFT: 37, RIGHT: 39, SPACE: 32 };
-    };
+    }
 
     window.onload = function () {
         new Game("screen");
