@@ -28,7 +28,7 @@
 
     var Game = function (canvasId) {
         var canvas = document.getElementById(canvasId);
-        var screen = canvas.getContext('2d');
+        this.screen = canvas.getContext('2d');
         this.gameSize = { x: canvas.width, y: canvas.height };
 
         this.isGameOver = false;
@@ -78,10 +78,9 @@
             return surface;
         };
 
-        var printCentered = function(text, yOffset)
-        {
-            var metric = screen.measureText(text);
-            screen.fillText(text, self.gameSize.x / 2 - metric.width / 2, self.gameSize.y / 2 - (metric.actualBoundingBoxDescent - metric.actualBoundingBoxAscent) * yOffset);
+        var printCentered = function (text, yOffset) {
+            var metric = self.screen.measureText(text);
+            self.screen.fillText(text, self.gameSize.x / 2 - metric.width / 2, self.gameSize.y / 2 - (metric.actualBoundingBoxDescent - metric.actualBoundingBoxAscent) * yOffset);
         }
 
         var tick = function () {
@@ -100,7 +99,7 @@
                 }, 1500);
                 return;
             }
-            self.draw(screen, self.gameSize);
+            self.draw(self.screen, self.gameSize);
             requestAnimationFrame(tick);
         }
 
@@ -113,6 +112,8 @@
         this.surface = createSurface(this.landingPad, this.objs);
         this.ship = new Ship(this);
         this.objs.push(this.ship);
+        this.fuelGauge = new FuelGauge(this, this.ship);
+        this.objs.push(this.fuelGauge);
 
         this.init();
         tick();
@@ -129,16 +130,6 @@
 
         draw: function (screen, size) {
             screen.clearRect(0, 0, size.x, size.y);
-            screen.beginPath();
-            screen.moveTo(0, 0);
-            screen.lineTo(0, size.y);
-            screen.lineTo(size.x, size.y);
-            screen.lineTo(size.x, 0);
-            screen.closePath();
-            screen.stroke();
-            screen.fillText("Angle: " + Math.round(this.ship.angle / Math.PI * 180), 10, 10);
-            screen.fillText("Vertical speed: " + Math.round(this.ship.speed.y * 100), 10, 20);
-            screen.fillText("Fuel: " + Math.round(this.ship.fuel), 10, 30);
             this.objs.forEach(obj => obj.draw(screen));
         },
 
@@ -241,15 +232,19 @@
 
     var Ship = function (game) {
         this.game = game;
-        this.fuel = 100;
+        
+        this.maxFuel = 100;
+        this.fuel = this.maxFuel;
+        
         do {
-            this.position = { x: game.gameSize.x * 0.2 + Math.random() * game.gameSize.x * 0.6, y: 25 };
+            this.position = { x: game.gameSize.x * 0.2 + Math.random() * game.gameSize.x * 0.6, y: 30 };
         } while ((Math.abs(this.position.x - this.game.landingPad.x - this.game.landingPad.width / 2)) < 50);
 
         this.size = { width: 10, height: 10 };
         this.angle = 0;
         this.thrust = 0;
-        this.speed = { x: 0.0, y: 0.01 };
+        this.gravity = 0.01;
+        this.speed = { x: 0.0, y: 0.0 };
         this.Input = new Input();
     }
 
@@ -283,7 +278,7 @@
 
         this.speed.x = this.speed.x - this.thrust * Math.sin(this.angle);
         this.speed.y = this.speed.y - this.thrust * Math.cos(this.angle);
-        this.speed.y = this.speed.y + 0.005;
+        this.speed.y = this.speed.y + this.gravity;
 
         this.position.x = this.position.x + this.speed.x;
         this.position.y = this.position.y + this.speed.y;
@@ -362,6 +357,35 @@
             screen.lineTo(s.p2.x, s.p2.y);
         });
         screen.stroke();
+    }
+
+    var FuelGauge = function (game, ship) {
+        this.ship = ship;
+        this.label = "Fuel:";
+
+        var metric = game.screen.measureText(this.label);
+
+        var textHeight = metric.actualBoundingBoxAscent - metric.actualBoundingBoxDescent;
+        this.textPosition = { x: 4, y: 4 + textHeight };
+        this.textSize = {x: metric.width, y: textHeight};
+
+        this.barPosition = {x: this.textPosition.x + this.textSize.x + 4, y: this.textPosition.y - textHeight};
+        this.barSize = { x: game.gameSize.x / 4, y: textHeight};
+        
+        this.lineSegments = [
+            new LineSegment(this.barPosition.x, this.barPosition.y, this.barPosition.x, this.barPosition.y + this.barSize.y),
+            new LineSegment(this.barPosition.x, this.barPosition.y + this.barSize.y, this.barPosition.x + this.barSize.x, this.barPosition.y + this.barSize.y),
+            new LineSegment(this.barPosition.x + this.barSize.x, this.barPosition.y + this.barSize.y, this.barPosition.x + this.barSize.x, this.barPosition.y),
+            new LineSegment(this.barPosition.x + this.barSize.x, this.barPosition.y, this.barPosition.x, this.barPosition.y),
+        ];
+    }
+    
+    extend(GameObject, FuelGauge);
+    
+    FuelGauge.prototype.draw = function (screen) {
+        GameObject.prototype.draw.call(this, screen);
+        screen.fillText(this.label, this.textPosition.x, this.textPosition.y);
+        screen.fillRect(this.barPosition.x, this.barPosition.y, this.barSize.x * (this.ship.fuel / this.ship.maxFuel), this.barSize.y);
     }
 
     var Input = function () {
