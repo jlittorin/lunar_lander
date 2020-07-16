@@ -153,9 +153,9 @@
             return this.landingPad.intersects(obj);
         },
 
-        win: function () {
+        win: function (score) {
             this.isGameOver = true;
-            this.gameOverMsgs = ["YOU WIN!"];
+            this.gameOverMsgs = ["YOU WIN!", "Score: " + score + " points"];
         },
 
         gameOver: function (msg) {
@@ -290,16 +290,22 @@
 
         this._calculateLineSegments();
 
+        const maxAngle = Math.PI / 180 * 8;
+        const maxSpeed = 0.8;
         if (this.game.touchingLandingPad(this)) {
             if (this.speed.y > 0.8) {
                 this.game.gameOver("You came down too fast");
                 return;
             }
-            if (Math.abs(this.angle) > Math.PI / 180 * 8) {
+            if (Math.abs(this.angle) >  maxAngle) {
                 this.game.gameOver("Your landing angle was bad");
                 return;
             }
-            this.game.win();
+            var fuelScore = Math.round(this.fuel);
+            var speedScore = Math.round(50 * (maxSpeed - this.speed.y) / maxSpeed);
+            var angleScore = Math.round(50 * (maxAngle - Math.abs(this.angle)) / maxAngle);
+            var score = fuelScore + speedScore + angleScore;
+            this.game.win(score);
         }
         if (this.game.outOfBounds(this)) {
             this.game.gameOver("You went off into space");
