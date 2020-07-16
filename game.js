@@ -29,8 +29,8 @@
     var Game = function (canvasId) {
         var canvas = document.getElementById(canvasId);
         this.screen = canvas.getContext('2d');
-        this.screen.strokeStyle ="#FFFFFF";
-        this.screen.fillStyle ="#FFFFFF";
+        this.screen.strokeStyle = "#FFFFFF";
+        this.screen.fillStyle = "#FFFFFF";
         this.gameSize = { x: canvas.width, y: canvas.height };
 
         this.isGameOver = false;
@@ -96,7 +96,10 @@
                 window.setTimeout(() => {
                     printCentered("Press any key to play again", 5.6)
                     window.onkeydown = function (e) {
-                        new Game("screen");
+                        // Filter out shift, ctrl etc
+                        if (![16, 17, 18, 20, 92, 93, 225].includes(e.keyCode)) {
+                            new Game("screen");
+                        }
                     }
                 }, 1500);
                 return;
@@ -234,10 +237,10 @@
 
     var Ship = function (game) {
         this.game = game;
-        
+
         this.maxFuel = 100;
         this.fuel = this.maxFuel;
-        
+
         do {
             this.position = { x: game.gameSize.x * 0.2 + Math.random() * game.gameSize.x * 0.6, y: 30 };
         } while ((Math.abs(this.position.x - this.game.landingPad.x - this.game.landingPad.width / 2)) < 50);
@@ -263,7 +266,7 @@
 
             this.angle = Math.max(-Math.PI * 3 / 4, Math.min(Math.PI * 3 / 4, this.angle));
 
-            if (this.Input.isDown(this.Input.KEYS.SPACE)) {
+            if (this.Input.isDown(this.Input.KEYS.SPACE) || this.Input.isDown(this.Input.KEYS.UP)) {
                 this.thrust += 0.0021;
                 this.thrust = Math.min(this.thrust, 0.05);
             }
@@ -369,11 +372,11 @@
 
         var textHeight = metric.actualBoundingBoxAscent - metric.actualBoundingBoxDescent;
         this.textPosition = { x: 4, y: 4 + textHeight };
-        this.textSize = {x: metric.width, y: textHeight};
+        this.textSize = { x: metric.width, y: textHeight };
 
-        this.barPosition = {x: this.textPosition.x + this.textSize.x + 4, y: this.textPosition.y - textHeight};
-        this.barSize = { x: game.gameSize.x / 4, y: textHeight};
-        
+        this.barPosition = { x: this.textPosition.x + this.textSize.x + 4, y: this.textPosition.y - textHeight };
+        this.barSize = { x: game.gameSize.x / 4, y: textHeight };
+
         this.lineSegments = [
             new LineSegment(this.barPosition.x, this.barPosition.y, this.barPosition.x, this.barPosition.y + this.barSize.y),
             new LineSegment(this.barPosition.x, this.barPosition.y + this.barSize.y, this.barPosition.x + this.barSize.x, this.barPosition.y + this.barSize.y),
@@ -381,9 +384,9 @@
             new LineSegment(this.barPosition.x + this.barSize.x, this.barPosition.y, this.barPosition.x, this.barPosition.y),
         ];
     }
-    
+
     extend(GameObject, FuelGauge);
-    
+
     FuelGauge.prototype.render = function (screen) {
         GameObject.prototype.render.call(this, screen);
         screen.fillText(this.label, this.textPosition.x, this.textPosition.y);
@@ -404,7 +407,7 @@
             return keyState[keyCode] === true;
         }
 
-        this.KEYS = { LEFT: 37, RIGHT: 39, SPACE: 32 };
+        this.KEYS = { LEFT: 37, UP: 38, RIGHT: 39, SPACE: 32 };
     }
 
     window.onload = function () {
