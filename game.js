@@ -29,6 +29,8 @@
     var Game = function (canvasId) {
         var canvas = document.getElementById(canvasId);
         this.screen = canvas.getContext('2d');
+        this.screen.strokeStyle ="#FFFFFF";
+        this.screen.fillStyle ="#FFFFFF";
         this.gameSize = { x: canvas.width, y: canvas.height };
 
         this.isGameOver = false;
@@ -99,7 +101,7 @@
                 }, 1500);
                 return;
             }
-            self.draw(self.screen, self.gameSize);
+            self.render(self.screen, self.gameSize);
             requestAnimationFrame(tick);
         }
 
@@ -128,9 +130,9 @@
             this.objs.forEach(obj => obj.update());
         },
 
-        draw: function (screen, size) {
+        render: function (screen, size) {
             screen.clearRect(0, 0, size.x, size.y);
-            this.objs.forEach(obj => obj.draw(screen));
+            this.objs.forEach(obj => obj.render(screen));
         },
 
         outOfBounds: function (obj) {
@@ -170,7 +172,7 @@
         update: function () {
         },
 
-        draw: function (screen) {
+        render: function (screen) {
             screen.beginPath();
             this.lineSegments.forEach((s) => {
                 screen.moveTo(s.p1.x, s.p1.y);
@@ -350,7 +352,7 @@
         }
     }
 
-    Ship.prototype.draw = function (screen) {
+    Ship.prototype.render = function (screen) {
         screen.beginPath();
         this.lineSegments.concat(this.flareLineSegments).forEach((s) => {
             screen.moveTo(s.p1.x, s.p1.y);
@@ -382,8 +384,8 @@
     
     extend(GameObject, FuelGauge);
     
-    FuelGauge.prototype.draw = function (screen) {
-        GameObject.prototype.draw.call(this, screen);
+    FuelGauge.prototype.render = function (screen) {
+        GameObject.prototype.render.call(this, screen);
         screen.fillText(this.label, this.textPosition.x, this.textPosition.y);
         screen.fillRect(this.barPosition.x, this.barPosition.y, this.barSize.x * (this.ship.fuel / this.ship.maxFuel), this.barSize.y);
     }
