@@ -119,6 +119,11 @@
         this.objs.push(this.ship);
         this.fuelGauge = new FuelGauge(this, this.ship);
         this.objs.push(this.fuelGauge);
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('dbg')) {
+            this.dbg = new DebugInfo(this, this.ship);
+            this.objs.push(this.dbg);
+        }
 
         this.init();
         tick();
@@ -291,20 +296,26 @@
         this._calculateLineSegments();
 
         const maxAngle = Math.PI / 180 * 8;
-        const maxSpeed = 0.8;
+        const maxXSpeed = 0.5;
+        const maxYSpeed = 0.8;
         if (this.game.touchingLandingPad(this)) {
-            if (this.speed.y > 0.8) {
+            if (this.speed.y > maxYSpeed) {
                 this.game.gameOver("You came down too fast");
                 return;
             }
-            if (Math.abs(this.angle) >  maxAngle) {
+            if (Math.abs(this.speed.x) > maxXSpeed) {
+                this.game.gameOver("You drifted too much sideways during touchdown");
+                return;
+            }
+            if (Math.abs(this.angle) > maxAngle) {
                 this.game.gameOver("Your landing angle was bad");
                 return;
             }
             var fuelScore = Math.round(this.fuel);
-            var speedScore = Math.round(50 * (maxSpeed - this.speed.y) / maxSpeed);
-            var angleScore = Math.round(50 * (maxAngle - Math.abs(this.angle)) / maxAngle);
-            var score = fuelScore + speedScore + angleScore;
+            var speedXScore = Math.round(20 * (maxXSpeed - this.speed.x) / maxXSpeed);
+            var speedYScore = Math.round(40 * (maxYSpeed - this.speed.y) / maxYSpeed);
+            var angleScore = Math.round(40 * (maxAngle - Math.abs(this.angle)) / maxAngle);
+            var score = fuelScore + speedXScore + speedYScore + angleScore;
             this.game.win(score);
         }
         if (this.game.outOfBounds(this)) {
@@ -312,10 +323,13 @@
         }
         if (this.game.touchingSurface(this)) {
             if (this.fuel > 0) {
-                this.game.gameOver("You crashed, causing a crater " + Math.round(this.fuel / 1.7) + " km wide.");
+                var sx = this.speed.x;
+                var sy = this.speed.y;
+                var craterSize = Math.max(10, Math.round(this.fuel / 1.7) * Math.round(Math.sqrt(sx*sx + sy*sy)));
+                this.game.gameOver("You crashed, causing a crater " + craterSize + " km wide");
             }
             else {
-                this.game.gameOver("You crashed.");
+                this.game.gameOver("You crashed");
             }
         }
     };
@@ -397,6 +411,18 @@
         GameObject.prototype.render.call(this, screen);
         screen.fillText(this.label, this.textPosition.x, this.textPosition.y);
         screen.fillRect(this.barPosition.x, this.barPosition.y, this.barSize.x * (this.ship.fuel / this.ship.maxFuel), this.barSize.y);
+    }
+
+    var DebugInfo = function (game, ship) {
+        this.ship = ship;
+    }
+
+    extend(GameObject, DebugInfo);
+
+    DebugInfo.prototype.render = function (screen) {
+        screen.fillText("Speed X: " + Math.round(this.ship.speed.x * 100) / 100, 4, 22);
+        screen.fillText("Speed Y: " + Math.round(this.ship.speed.y * 100) / 100, 4, 32);
+        screen.fillText("Angle: " + Math.round(this.ship.angle / Math.PI * 180 * 10) / 10, 4, 42);
     }
 
     var Input = function () {
